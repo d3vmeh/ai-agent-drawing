@@ -12,7 +12,7 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 api_key = os.getenv("OPENAI_API_KEY")
 
 
-def get_llm_response(question, context):
+def get_agent_response(question, context):
 
     headers = {
         "Content-Type": "application/json",
@@ -72,9 +72,11 @@ def get_llm_response(question, context):
             
             Here is a sample question/response. You must respond in the same format:
 
-            Example question: What is the weather in London? Also, can you get the transcript of the video with the URL https://www.youtube.com/watch?v=yBGlX1CEG14?
+            Example question: Draw a line from (100,100) to (200,200), draw a circle at (300,300) with a radius of 50, and draw a rectangle at (400,400) with a width and height of 100.
 
-            Example response: {"tools": {"get_current_weather": {"location": "London"}, "get_youtube_transcript": {"video_url": "https://www.youtube.com/watch?v=yBGlX1CEG14"}}}
+            Example response: {"tools": {"draw_line": {"start_point": (100, 100), "end_point": (200, 200)}, "draw_circle": {"center": (300, 300), "radius": 50}, "draw_rectangle": {"top_left": (400, 400), "width": 100, "height": 100}}}
+
+            The overarching key MUST be "tools".
 
             ========================
 
@@ -83,15 +85,15 @@ def get_llm_response(question, context):
             You may have already used tools to get the information you need.
             Here is what you know based on your previous conversation with the user: """+ context+"""
             
-            If you already have the information you need from the tool ouputs, ignore the rest of the instructions and answer the question immediately in the following format:
 
-            
-            {"response": "Answer to the question in natural language using the information you have. Be detailed and thorough. If there is a lot of information, try to summarize. Outside of the JSON format, do not use any brackets or quotation marks."}
-            
-            Here is an example response: {"response": "The weather in London is sunny with a temperature of 60 degrees Fahrenheit and a wind speed of 10 mph."}
-            Recall, you response is for this question: """ + question + """
-            
             """
+
+                        
+            #{"response": "Answer to the question in natural language using the information you have. Be detailed and thorough. If there is a lot of information, try to summarize. Outside of the JSON format, do not use any brackets or quotation marks."}
+            
+            #Here is an example response: {"response": "The weather in London is sunny with a temperature of 60 degrees Fahrenheit and a wind speed of 10 mph."}
+            #Recall, you response is for this question: """ + question + """
+            
             }
         ]
         }
@@ -102,10 +104,11 @@ def get_llm_response(question, context):
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
     response_data = response.json()
-
+    
     if 'choices' in response_data and len(response_data['choices']) > 0:
         structured_response = response_data['choices'][0]['message']['content']
         cleaned_response = structured_response.strip('```json\n').strip('```').strip()
+        print(cleaned_response)
         try:
             response_dict = json.loads(cleaned_response)
             return response_dict
@@ -120,17 +123,31 @@ def get_llm_response(question, context):
         return {"error": "No valid response from model"}
     
 context = ""
-
+tool_outputs = []
 while True:
-    # Process pygame events to keep window responsive
+
+
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
     
     pygame.display.update()
+
+
     question = input("Enter a question: ")
-    response = get_llm_response(question, context)
+
+
+    context = f"""
+
+    You are trying to answer this question: {question}
+
+    You got the following outputs from the tools used previously: {tool_outputs}
+
+    """
+
+    response = get_agent_response(question, context)
     print(response)
 
     tool_outputs = []
@@ -154,10 +171,10 @@ while True:
             value = draw_rectangle(screen, tool_input['top_left'], tool_input['width'], tool_input['height'])
             tool_outputs.append(value)
             tools_used.append(tool)
-            
-            
-            
+    
+    print("tool outputs: ", tool_outputs)
 
+    
 
 
     
