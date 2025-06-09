@@ -3,6 +3,14 @@ import os
 from pydantic import BaseModel
 import json
 from tools import *
+import pygame
+
+pygame.init()
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+api_key = os.getenv("OPENAI_API_KEY")
+
 
 def get_llm_response(question, context):
 
@@ -23,30 +31,39 @@ def get_llm_response(question, context):
             "text": """
             
             
-            You are an agent that will assist the user in the task requested. You can use tools to help you complete this task.
+            You are an agent that will assist the user in a drawing task on a display of a width 800 and height 600. You can use tools to help you complete this task.
 
             Only use the tools if you don't have the information you need. If you are using tools, follow the following instructions:
             ==========================
             You have access to the following tools you can use to complete the task requested by the user:
 
-            Tool 1: get_youtube_transcript
+            Tool 1: draw_line
             
-            Returns the transcript of a YouTube video when provided a video_url or ID.
-                
-            Input: video_url (str)
+            Draws a line on the screen with the coordinates of the start and end points, which are integer x/y ordered pairs
 
-            Return format: Optional[List[Dict[str, str]]]: List of transcript segments with text and timestamps, or None if transcript is not available
+            Input: None
 
+            Return format: Dict[start_point, end_point]
+            - start_point (Tuple[int, int]), end_point (Tuple[int, int])
             
 
-            Tool 2: get_current_weather
+            Tool 2: draw_circle
 
-            Returns the current weather in a specific location. Location must be provided as a string, only the city name
+            Draws a circle on the screen with the coordinates of the center and the radius
 
-            Input: location (str)
-            Return format: Optional[Dict[str, str]]: Dictionary containing weather information, or None if weather data is not available
+            Input: None
+            Return format: Dict[center, radius]
+            - center (Tuple[int, int]), radius (int)
 
-            
+
+            Tool 3: draw_rectangle
+
+            Draws a rectangle on the screen with the coordinates of the top left corner and the width and height
+
+            Input: None
+            Return format: Dict[top_left, width, height]
+            - top_left (Tuple[int, int]), width (int), height (int)
+
             
             Unless told to ignore instructions, you must respond in a consistent structured format (e.g., JSON) with the following fields:
             - tools: The tools you will use
@@ -58,30 +75,6 @@ def get_llm_response(question, context):
             Example question: What is the weather in London? Also, can you get the transcript of the video with the URL https://www.youtube.com/watch?v=yBGlX1CEG14?
 
             Example response: {"tools": {"get_current_weather": {"location": "London"}, "get_youtube_transcript": {"video_url": "https://www.youtube.com/watch?v=yBGlX1CEG14"}}}
-            
-            
-
-            Tool 3: check_flights
-
-            Returns a list of available flights for a given destination and date.
-
-            Inputs:
-            - destination (str): IATA code of destination airport (e.g., 'NYC' for New York)
-            - departure_date (str): Date in format mm/dd/yy.
-            - origin (str): IATA code of origin airport (default: 'LON' for London)
-
-            Returns:
-            - Optional[List[Dict]]: List of available flights with their details, or None if no flights are found
-
-            
-            Return format: Optional[List[Dict]]: List of available flights with their details, or None if no flights are found
-
-            Tool 4: web_search
-
-            Returns a list of web search results for a given query.
-
-            Input: query (str)
-            Return format: Optional[List[str]]: List of formatted text results, or None if the search fails
 
             ========================
 
@@ -125,4 +118,46 @@ def get_llm_response(question, context):
                 return {"error": "Failed to decode response as JSON", "content": structured_response}
     else:
         return {"error": "No valid response from model"}
+    
+context = ""
+
+while True:
+    # Process pygame events to keep window responsive
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            exit()
+    
+    pygame.display.update()
+    question = input("Enter a question: ")
+    response = get_llm_response(question, context)
+    print(response)
+
+    tool_outputs = []
+    tools_used = []
+    for tool in response['tools']:
+        if tool == 'draw_line':
+            tool_input = response['tools']['draw_line']
+            print(tool_input)
+            value = draw_line(screen, tool_input['start_point'], tool_input['end_point'])
+            tool_outputs.append(value)
+            tools_used.append(tool)
+
+        elif tool == 'draw_circle':
+            tool_input = response['tools']['draw_circle']
+            value = draw_circle(screen, tool_input['center'], tool_input['radius'])
+            tool_outputs.append(value)
+            tools_used.append(tool)
+
+        elif tool == 'draw_rectangle':
+            tool_input = response['tools']['draw_rectangle']
+            value = draw_rectangle(screen, tool_input['top_left'], tool_input['width'], tool_input['height'])
+            tool_outputs.append(value)
+            tools_used.append(tool)
+            
+            
+            
+
+
+
     
