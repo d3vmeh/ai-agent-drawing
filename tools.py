@@ -4,7 +4,7 @@ pygame.init()
 
 
 def draw_line(screen, start_point, end_point):
-    pygame.draw.line(screen, (255, 255, 255), start_point, end_point)
+    pygame.draw.line(screen, (255, 255, 255), start_point, end_point,10)
     return "Drawn line from " + str(start_point) + " to " + str(end_point)
 
 def draw_circle(screen, center, radius):

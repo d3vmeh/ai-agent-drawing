@@ -39,30 +39,43 @@ def get_agent_response(question, context):
 
             Tool 1: draw_line
             
-            Draws a line on the screen with the coordinates of the start and end points, which are integer x/y ordered pairs
+            Draws one or more lines on the screen. Each line is defined by the coordinates of the start and end points.
 
             Input: None
 
-            Return format: Dict[start_point, end_point]
-            - start_point (Tuple[int, int]), end_point (Tuple[int, int])
-            
+            Return format: List[Dict[start_point, end_point]]
+            - Each item: start_point (Array[int, int]), end_point (Array[int, int])
+            Example:
+            "draw_line": [
+              {"start_point": [0, 0], "end_point": [0, 100]},
+              {"start_point": [0, 100], "end_point": [100, 100]}
+            ]
 
             Tool 2: draw_circle
 
-            Draws a circle on the screen with the coordinates of the center and the radius
+            Draws one or more circles on the screen. Each circle is defined by its center and radius.
 
             Input: None
-            Return format: Dict[center, radius]
-            - center (Tuple[int, int]), radius (int)
+            Return format: List[Dict[center, radius]]
+            - Each item: center (Array[int, int]), radius (int)
+            Example:
+            "draw_circle": [
+              {"center": [200, 200], "radius": 50}
+            ]
 
 
             Tool 3: draw_rectangle
 
-            Draws a rectangle on the screen with the coordinates of the top left corner and the width and height
+            Draws one or more rectangles on the screen. Each rectangle is defined by its top-left corner, width, and height.
 
             Input: None
-            Return format: Dict[top_left, width, height]
-            - top_left (Tuple[int, int]), width (int), height (int)
+
+            Return format: List[Dict[top_left, width, height]]
+            - Each item: top_left (Array[int, int]), width (int), height (int)
+            Example:
+            "draw_rectangle": [
+              {"top_left": [300, 300], "width": 100, "height": 50}
+            ]
 
             
             Unless told to ignore instructions, you must respond in a consistent structured format (e.g., JSON) with the following fields:
@@ -78,11 +91,34 @@ def get_agent_response(question, context):
 
             The overarching key MUST be "tools".
 
+            
+
+            Example using multiple tools: Draw a line from (0,0) to (0,100) and a line from (0,100) to (100,100). Also, draw a circle at (200,200) with a radius of 50. Finally, draw a rectangle at (300,300) with a width of 100 and height of 50.
+
+
+            Example response for multiple tools:
+            {
+            "tools": {
+                "draw_line": [
+                {"start_point": [0, 0], "end_point": [0, 100]},
+                {"start_point": [0, 100], "end_point": [100, 100]}
+                ],
+                "draw_circle": [
+                {"center": [200, 200], "radius": 50}
+                ],
+                "draw_rectangle": [
+                {"top_left": [300, 300], "width": 100, "height": 50}
+                ]
+            }
+            }
+
+            When returning JSON, do not include any comments or explanations. Only output valid JSON. Do not use // or # for comments.
+            
             ========================
 
             
 
-            You may have already used tools to get the information you need.
+            You may have already used tools to get the information you need. 
             Here is what you know based on your previous conversation with the user: """+ context+"""
             
 
@@ -134,8 +170,6 @@ while True:
             exit()
     
     pygame.display.update()
-
-
     question = input("Enter a question: ")
 
 
@@ -145,6 +179,9 @@ while True:
 
     You got the following outputs from the tools used previously: {tool_outputs}
 
+    Do not include any comments (with the '//') or written text in the JSON response at all.
+    Note: You may never use the word "//" in your response under any circumstances.
+
     """
 
     response = get_agent_response(question, context)
@@ -152,26 +189,25 @@ while True:
 
     tool_outputs = []
     tools_used = []
-    for tool in response['tools']:
-        if tool == 'draw_line':
-            tool_input = response['tools']['draw_line']
-            print(tool_input)
-            value = draw_line(screen, tool_input['start_point'], tool_input['end_point'])
-            tool_outputs.append(value)
-            tools_used.append(tool)
 
-        elif tool == 'draw_circle':
-            tool_input = response['tools']['draw_circle']
-            value = draw_circle(screen, tool_input['center'], tool_input['radius'])
-            tool_outputs.append(value)
-            tools_used.append(tool)
+    # Updated logic to handle lists for each tool
+    tools = response.get('tools', {})
+    # Draw lines
+    for line in tools.get('draw_line', []):
+        value = draw_line(screen, line['start_point'], line['end_point'])
+        tool_outputs.append(value)
+        tools_used.append('draw_line')
+    # Draw circles
+    for circle in tools.get('draw_circle', []):
+        value = draw_circle(screen, circle['center'], circle['radius'])
+        tool_outputs.append(value)
+        tools_used.append('draw_circle')
+    # Draw rectangles
+    for rect in tools.get('draw_rectangle', []):
+        value = draw_rectangle(screen, rect['top_left'], rect['width'], rect['height'])
+        tool_outputs.append(value)
+        tools_used.append('draw_rectangle')
 
-        elif tool == 'draw_rectangle':
-            tool_input = response['tools']['draw_rectangle']
-            value = draw_rectangle(screen, tool_input['top_left'], tool_input['width'], tool_input['height'])
-            tool_outputs.append(value)
-            tools_used.append(tool)
-    
     print("tool outputs: ", tool_outputs)
 
     
