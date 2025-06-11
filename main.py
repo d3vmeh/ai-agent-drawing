@@ -5,7 +5,7 @@ import json
 from tools import *
 import pygame
 import pygame.image
-from manager_agent import get_manager_response
+from manager_agent import get_manager_response, encode_image
 
 pygame.init()
 screen_width = 800
