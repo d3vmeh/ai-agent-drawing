@@ -30,14 +30,15 @@ def get_manager_response(question,image_path="drawing.png"):
 
             Once the agent has drawn the image, you will decide if the image is good enough to show the user or if it needs to be redrawn from scratch.
 
-            Respond to the user with the following format:
+            Respond to with the following format:
 
             {
-            "response": "Your evaluation of the image",
+            "response": "Your evaluation/feedback of the image",
             "redraw": "True/False"
             }
 
             The "response" should be your evaluation/feedback of the image in natural language. This feedback will be given to the agent to help it redraw the image and make it better.
+            Ensure this feedback is specific and detailed.
 
             The "redraw" should be True if the image is not good enough and you need to redraw it from scratch, or if the screen is blank.
 
