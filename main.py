@@ -162,8 +162,6 @@ context = ""
 tool_outputs = []
 while True:
 
-
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -171,7 +169,6 @@ while True:
     
     pygame.display.update()
     question = input("Enter a question: ")
-
 
     context = f"""
 
@@ -183,34 +180,21 @@ while True:
     Note: You may never use the word "//" in your response under any circumstances.
 
     """
-
     response = get_agent_response(question, context)
     print(response)
-
     tool_outputs = []
     tools_used = []
-
-    # Updated logic to handle lists for each tool
     tools = response.get('tools', {})
-    # Draw lines
     for line in tools.get('draw_line', []):
         value = draw_line(screen, line['start_point'], line['end_point'])
         tool_outputs.append(value)
         tools_used.append('draw_line')
-    # Draw circles
     for circle in tools.get('draw_circle', []):
         value = draw_circle(screen, circle['center'], circle['radius'])
         tool_outputs.append(value)
         tools_used.append('draw_circle')
-    # Draw rectangles
     for rect in tools.get('draw_rectangle', []):
         value = draw_rectangle(screen, rect['top_left'], rect['width'], rect['height'])
         tool_outputs.append(value)
         tools_used.append('draw_rectangle')
-
     print("tool outputs: ", tool_outputs)
-
-    
-
-
-    
