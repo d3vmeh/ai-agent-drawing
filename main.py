@@ -183,17 +183,20 @@ def get_agent_response(question, context, feedback = ""):
     if 'choices' in response_data and len(response_data['choices']) > 0:
         structured_response = response_data['choices'][0]['message']['content']
         cleaned_response = structured_response.strip('```json\n').strip('```').strip()
-        print(cleaned_response)
+        cleaned_response = clean_json_response(cleaned_response)
+        print("Cleaned response:", cleaned_response)
         try:
             response_dict = json.loads(cleaned_response)
             return response_dict
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
             try:
                 import ast
                 response_dict = ast.literal_eval(cleaned_response)
                 return response_dict
-            except:
-                return {"error": "Failed to decode response as JSON", "content": structured_response}
+            except Exception as ast_error:
+                print(f"AST literal_eval error: {ast_error}")
+                return {"error": "Failed to decode response as JSON", "content": cleaned_response}
     else:
         return {"error": "No valid response from model"}
     
