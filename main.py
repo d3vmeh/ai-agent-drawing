@@ -4,15 +4,45 @@ from pydantic import BaseModel
 import json
 from tools import *
 import pygame
+import pygame.image
+from manager_agent import get_manager_response
 
 pygame.init()
 screen_width = 800
 screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
 api_key = os.getenv("OPENAI_API_KEY")
+screen.fill((255,255,255))
+
+def save_screen_as_image(filename="drawing.png"):
+
+    try:
+        pygame.image.save(screen, filename)
+        print(f"Screen saved as {filename}")
+        return f"Successfully saved screen as {filename}"
+    except Exception as e:
+        print(f"Error saving screen: {e}")
+        return f"Error saving screen: {e}"
 
 
-def get_agent_response(question, context):
+def clean_json_response(response_text):
+    """
+    Clean the response text by removing any comments and ensuring it's valid JSON.
+    """
+    # Remove any lines that start with // or contain //
+    lines = response_text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        if '//' in line:
+            line = line.split('//')[0]
+        if line.strip():
+            cleaned_lines.append(line)
+    
+    cleaned_response = '\n'.join(cleaned_lines)
+    return cleaned_response.strip()
+
+
+def get_agent_response(question, context, feedback = ""):
 
     headers = {
         "Content-Type": "application/json",
@@ -32,6 +62,8 @@ def get_agent_response(question, context):
             
             
             You are an agent that will assist the user in a drawing task on a display of a width 800 and height 600. You can use tools to help you complete this task.
+
+            CRITICAL: You must respond with ONLY valid JSON. No comments, no explanations, no additional text. Your response must be parseable JSON.
 
             Only use the tools if you don't have the information you need. If you are using tools, follow the following instructions:
             ==========================
@@ -78,10 +110,14 @@ def get_agent_response(question, context):
             ]
 
             
-            Unless told to ignore instructions, you must respond in a consistent structured format (e.g., JSON) with the following fields:
+            RESPONSE FORMAT RULES:
+            1. You must respond in a consistent structured format (e.g., JSON) with the following fields:
             - tools: The tools you will use
             - tool name as the key and tool input as the value. tool input is the input you will give to the tool. The key should be the name of the Input field(s) of the tool. (e.g. 'location' for get_current_weather)
 
+            2. ABSOLUTELY NO COMMENTS: Do not include any comments with // or # or any other comment syntax
+            3. NO EXPLANATIONS: Do not include any explanatory text outside the JSON
+            4. PURE JSON ONLY: Your entire response must be valid JSON that can be parsed directly
             
             Here is a sample question/response. You must respond in the same format:
 
@@ -112,7 +148,7 @@ def get_agent_response(question, context):
             }
             }
 
-            When returning JSON, do not include any comments or explanations. Only output valid JSON. Do not use // or # for comments.
+            FINAL REMINDER: Output ONLY valid JSON. No comments, no explanations, no additional text. The response must be parseable by json.loads().
             
             ========================
 
@@ -120,7 +156,10 @@ def get_agent_response(question, context):
 
             You may have already used tools to get the information you need. 
             Here is what you know based on your previous conversation with the user: """+ context+"""
-            
+
+            You will also receive important feedback from your manager. It is essential that you listen to and implement this feedback. 
+            Do not use the feedback to simply add on to your drawing. It is okay to redraw the image from scratch and remove components of the image that are not needed.
+            Here is the feedback from your manager: """+ feedback+"""
 
             """
 
@@ -160,6 +199,8 @@ def get_agent_response(question, context):
     
 context = ""
 tool_outputs = []
+pygame.display.update()
+
 while True:
 
     for event in pygame.event.get():
@@ -167,34 +208,57 @@ while True:
             pygame.quit()
             exit()
     
-    pygame.display.update()
+    #pygame.display.update()
     question = input("Enter a question: ")
+    if question.lower().strip() == "clear":
+        screen.fill((255, 255, 255))
+        pygame.display.update()
+        continue
+    
+    #save_screen_as_image()
+    while True:
+        pygame.display.update()
+        save_screen_as_image()
+        # Manager agent response
+        response = get_manager_response(question, "drawing.png")
+        print(response)
+        response_text = response['response']
+        print(response_text)
+        manager_decision = response['redraw']
 
-    context = f"""
+        if manager_decision == "False":
+            print("Drawing completed")
+            save_screen_as_image()
+            break
 
-    You are trying to answer this question: {question}
+        screen.fill((255, 255, 255))
 
-    You got the following outputs from the tools used previously: {tool_outputs}
+            
+        context = f"""
 
-    Do not include any comments (with the '//') or written text in the JSON response at all.
-    Note: You may never use the word "//" in your response under any circumstances.
+        You are trying to answer this question: {question}
 
-    """
-    response = get_agent_response(question, context)
-    print(response)
-    tool_outputs = []
-    tools_used = []
-    tools = response.get('tools', {})
-    for line in tools.get('draw_line', []):
-        value = draw_line(screen, line['start_point'], line['end_point'])
-        tool_outputs.append(value)
-        tools_used.append('draw_line')
-    for circle in tools.get('draw_circle', []):
-        value = draw_circle(screen, circle['center'], circle['radius'])
-        tool_outputs.append(value)
-        tools_used.append('draw_circle')
-    for rect in tools.get('draw_rectangle', []):
-        value = draw_rectangle(screen, rect['top_left'], rect['width'], rect['height'])
-        tool_outputs.append(value)
-        tools_used.append('draw_rectangle')
-    print("tool outputs: ", tool_outputs)
+        You got the following outputs from the tools used previously: {tool_outputs}
+
+        Do not include any comments (with the '//') or written text in the JSON response at all.
+        Note: You may never use the word "//" in your response under any circumstances.
+
+        """
+        response = get_agent_response(question, context, feedback = response_text)
+        print(response)
+        tool_outputs = []
+        tools_used = []
+        tools = response.get('tools', {})
+        for line in tools.get('draw_line', []):
+            value = draw_line(screen, line['start_point'], line['end_point'])
+            tool_outputs.append(value)
+            tools_used.append('draw_line')
+        for circle in tools.get('draw_circle', []):
+            value = draw_circle(screen, circle['center'], circle['radius'])
+            tool_outputs.append(value)
+            tools_used.append('draw_circle')
+        for rect in tools.get('draw_rectangle', []):
+            value = draw_rectangle(screen, rect['top_left'], rect['width'], rect['height'])
+            tool_outputs.append(value)
+            tools_used.append('draw_rectangle')
+        print("tool outputs: ", tool_outputs)
